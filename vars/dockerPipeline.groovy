@@ -2,24 +2,28 @@ def call(Map config = [:]) {
     pipeline {
         agent any
 
-        environment {
-            IMAGE_NAME = config.imageName ?: 'my-image:latest'
-            DOCKERFILE_PATH = config.dockerfilePath ?: '.'
-            GIT_URL = config.gitUrl ?: ''
-            GIT_BRANCH = config.gitBranch ?: 'main'
-        }
-
         stages {
+            stage('Prepare Variables') {
+                steps {
+                    script {
+                        IMAGE_NAME = config.imageName ?: 'my-image:latest'
+                        DOCKER_PATH = config.dockerfilePath ?: '.'
+                        GIT_URL = config.gitUrl ?: ''
+                        GIT_BRANCH = config.gitBranch ?: 'main'
+                    }
+                }
+            }
+
             stage('Checkout Repo') {
                 steps {
-                    git branch: "${GIT_BRANCH}", url: "${GIT_URL}"
+                    git url: GIT_URL, branch: GIT_BRANCH
                 }
             }
 
             stage('Build Docker Image') {
                 steps {
                     script {
-                        docker.build("${IMAGE_NAME}", "${DOCKERFILE_PATH}")
+                        docker.build("${IMAGE_NAME}", "${DOCKER_PATH}")
                     }
                 }
             }
@@ -28,8 +32,8 @@ def call(Map config = [:]) {
                 steps {
                     withCredentials([usernamePassword(
                         credentialsId: config.credentialsId,
-                        passwordVariable: 'DOCKER_PASSWORD',
-                        usernameVariable: 'DOCKER_USERNAME'
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
                     )]) {
                         script {
                             docker.withRegistry('https://index.docker.io/v1/', config.credentialsId) {
